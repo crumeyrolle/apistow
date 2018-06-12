@@ -248,6 +248,7 @@ func (client *Location) GetItem(ContainerName string, item string) (myItem stow.
 
 //Remove Remove
 func (client *Location) Remove(ContainerName string) (err error) {
+	log.Println("Remove Container => ", ContainerName)
 	err = client.Location.Location.RemoveContainer(ContainerName)
 	if err != nil {
 		log.Println("erreur Remove Container : ", ContainerName, err)
@@ -285,6 +286,7 @@ func SearchPatternForMapUser(key string, pattern string, m map[string]interface{
 
 // Inspect Liste List All Containers And Items
 func (client *Location) Inspect() (s map[string][]string, err error) {
+	log.Println(" Inspect  ")
 	var oneItemFund = false
 	//vsf := make([]string, 0)
 	vsf := make(map[string][]string)
@@ -323,6 +325,7 @@ func (client *Location) Inspect() (s map[string][]string, err error) {
 
 // FilterByMetadata Liste List All Containers And Items byPattern
 func (client *Location) FilterByMetadata(key string, pattern string) (s map[string][]string, err error) {
+	log.Println("FilterByMetadata => key : ", key, " pattern : ", pattern)
 	var oneItemFund = false
 	//vsf := make([]string, 0)
 	vsf := make(map[string][]string)
@@ -439,6 +442,7 @@ func (client *Location) ListItems(ContainerName string) (s map[string][]string, 
 
 // Clear  Clear
 func (client *Location) Clear(myContainerName string) (err error) {
+	log.Println("Clear => ContainerName : ", myContainerName)
 	c1, err := client.Location.Location.Container(myContainerName)
 	if err != nil {
 		log.Println("Location.Container => : ", myContainerName, err)
@@ -451,7 +455,11 @@ func (client *Location) Clear(myContainerName string) (err error) {
 			}
 			log.Println("delete Item => : ", item.Name(), " for Container ", c1.Name())
 			err = stow.Container.RemoveItem(c1, item.Name())
-			return nil
+			if err != nil {
+				log.Println("erreur delete Item => : ", err)
+				return err
+			}
+			return err
 		})
 	return err
 }

@@ -22,6 +22,8 @@ func Test_Connect(t *testing.T) {
 
 }
 
+// cd ~/go/src/github.com/pcrume/tests
+//go test -v
 func Test_Workflow(t *testing.T) {
 	var metadata = make(map[string]interface{})
 	var fileNameTest = "/tmp/test.txt"
@@ -84,9 +86,14 @@ func Test_Workflow(t *testing.T) {
 	assert.Nil(t, err)
 	err = client.PutItemByChunk(myContainerTest, myItemTestSplit, 10, f, meta)
 	assert.Nil(t, err)
+	time.Sleep(20 * time.Second)
 	err = client.Clear(myContainerTest)
 	assert.Nil(t, err)
-	time.Sleep(10 * time.Second)
+	time.Sleep(20 * time.Second)
+	pattern = "*isfortes*"
+	lContainersItemsFiltered, err = client.FilterByMetadata("user", pattern)
+	assert.Nil(t, err)
+	assert.Empty(t, lContainersItemsFiltered)
 	err = client.Remove(myContainerTest)
 	assert.Nil(t, err)
 	lContainersItemsFin, err := client.Inspect()
@@ -117,14 +124,17 @@ func createAndReadforTest(fileName string) (f *os.File, size int64, err error) {
 		log.Fatalf("failed creating file: %s", err)
 		return f, size, err
 	}
-
 	_, err = f.WriteString("Content string for testing item file creation")
-	f.Sync()
 	if err != nil {
 		log.Fatalf("failed writing to file: %s", err)
 		return f, size, err
 	}
+	f.Sync()
 	f, size, err = read(fileName)
+	if err != nil {
+		log.Fatalf("read  file: %s", err)
+		return f, size, err
+	}
 	return f, size, err
 }
 
