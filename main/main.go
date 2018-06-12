@@ -50,6 +50,7 @@ func main() {
 	lContainersItems, err = client.FilterItemsByMetadata(myContainerName, key, pattern1)
 	affichRes(client, lContainersItems)
 	return
+
 	fmt.Println(" ------------ ListContainers ------------")
 	listContainers, err = client.ListContainers()
 	fmt.Println(listContainers)
