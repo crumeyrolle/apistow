@@ -26,6 +26,8 @@ type ObjectStorageAPI interface {
 	Connect(projectName string, provider string) error
 
 	Inspect() (map[string][]string, error)
+	Count(key string, pattern string) (int, error)
+	WaitAllPutITemTerminated(key string, valuePattern string) error
 	FilterByMetadata(key string, valuePattern string) (map[string][]string, error)
 
 	ListContainers() ([]string, error)
@@ -54,6 +56,7 @@ type ObjectStorageAPI interface {
 //Location Location
 type Location struct {
 	Location StowLocation
+	NbItem   int
 }
 
 //StowLocation StowLocation
@@ -63,7 +66,7 @@ type StowLocation struct {
 
 //Connect Connect
 func (client *Location) Connect(projectName string, provider string) (err error) {
-
+	log.Println("Connect: ", provider)
 	var kind string
 	var config stow.ConfigMap
 	// on linux before ~/go/src/github.com/graymeta/stow/main$ go run main.go
@@ -259,6 +262,7 @@ func (client *Location) Remove(ContainerName string) (err error) {
 
 //Create Create
 func (client *Location) Create(ContainerName string) (err error) {
+	log.Println("Create Container => ", ContainerName)
 	_, err = client.Location.Location.CreateContainer(ContainerName)
 	if err != nil {
 		log.Println("erreur CreateContainer : ", ContainerName, err)
@@ -321,6 +325,39 @@ func (client *Location) Inspect() (s map[string][]string, err error) {
 		log.Println("Container WalkContainers => : ", err)
 	}
 	return vsf, err
+}
+
+// Count Liste List All Containers And Items
+func (client *Location) Count(key string, pattern string) (count int, err error) {
+	log.Println("Count  ")
+	var oneItemFund = false
+	count = 0
+	err = stow.WalkContainers(client.Location.Location, stow.NoPrefix, 100,
+		func(c stow.Container, err error) error {
+			if err != nil {
+				return err
+			}
+			err = stow.Walk(c, stow.NoPrefix, 100,
+				func(item stow.Item, err error) error {
+					if err != nil {
+						return err
+					}
+					meta := make(map[string]interface{})
+					meta, err = stow.Item.Metadata(item)
+					trouve := SearchPatternForMapUser("user", pattern, meta)
+					if trouve == true {
+						count = count + 1
+					}
+					return nil
+				})
+			if oneItemFund == false {
+			}
+			return nil
+		})
+	if err != nil {
+		log.Println("Container WalkContainers => : ", err)
+	}
+	return count, err
 }
 
 // FilterByMetadata Liste List All Containers And Items byPattern
@@ -453,12 +490,13 @@ func (client *Location) Clear(myContainerName string) (err error) {
 			if err != nil {
 				return err
 			}
-			log.Println("delete Item => : ", item.Name(), " for Container ", c1.Name())
+			log.Println("RemoveItem => : ", item.Name(), " for Container ", c1.Name())
 			err = stow.Container.RemoveItem(c1, item.Name())
 			if err != nil {
-				log.Println("erreur delete Item => : ", err)
+				log.Println("erreur RemoveItem => : ", err)
 				return err
 			}
+			client.NbItem = 0
 			return err
 		})
 	return err
@@ -620,6 +658,7 @@ func (client *Location) PutItem(container string, itemName string, f *os.File, m
 		log.Println("erreur stow.Container.Put ", itemName, err)
 		return nil
 	}
+	client.NbItem = client.NbItem + 1
 
 	return err
 }
@@ -640,7 +679,7 @@ func (client *Location) PutItemContent(container string, itemName string, conten
 		log.Println("erreur stow.Container.Put ", itemName, err)
 		return nil
 	}
-
+	client.NbItem = client.NbItem + 1
 	return err
 }
 
@@ -716,6 +755,7 @@ func (client *Location) PutItemByChunk(container string, itemName string, chunkS
 		}
 		err = BytesBufferToItem(i, client.Location.Location, c1.Name(), bufferedReader, p, itemName, int(size), chunkSize, metadata)
 		restbBytes = restbBytes - chunkSize
+		client.NbItem = client.NbItem + 1
 		if restbBytes == 0 {
 			break
 		}
@@ -737,5 +777,32 @@ func writeBuffToFile(byteSlice []byte, fileName string) (err error) {
 	}
 	bufferedWriter.Flush()
 	f.Close()
+	return err
+}
+
+//WaitAllPutITemTerminated WaitAllPutITemTerminated
+func (client *Location) WaitAllPutITemTerminated(key string, pattern string) (err error) {
+	log.Println("WaitAllPutITemTerminated : ", key, pattern)
+	count, err := client.Count(key, pattern)
+	if err != nil {
+		return err
+	}
+	fmt.Println("deb WaitAllPutITemTerminated  :", count)
+	fmt.Println("deb WaitAllPutITemTerminated  :", client.NbItem)
+	for count != client.NbItem {
+		count, err = client.Count(key, pattern)
+		if err != nil {
+			fmt.Println(err)
+			break
+		}
+		time.Sleep(1 * time.Second)
+		fmt.Println("boucle sleep count  WaitAllPutITemTerminated  :", count)
+		fmt.Println("boucle sleep NbItem WaitAllPutITemTerminated  :", client.NbItem)
+		if count == client.NbItem {
+			break
+		}
+		fmt.Println("count WaitAllPutITemTerminated  :", count)
+		fmt.Println("NbItem WaitAllPutITemTerminated  :", client.NbItem)
+	}
 	return err
 }

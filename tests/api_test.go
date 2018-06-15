@@ -13,6 +13,7 @@ import (
 	"testing"
 )
 
+/*
 func Test_Connect(t *testing.T) {
 	client := new(apistow.Location)
 	s1 := "OVH"
@@ -21,7 +22,7 @@ func Test_Connect(t *testing.T) {
 	assert.Nil(t, err)
 
 }
-
+*/
 // cd ~/go/src/github.com/pcrume/tests
 //go test -v
 func Test_Workflow(t *testing.T) {
@@ -36,15 +37,17 @@ func Test_Workflow(t *testing.T) {
 	metadata["country"] = "France"
 	metadata["Split"] = ""
 	client := new(apistow.Location)
-	s1 := "OVH"
-	s2 := "OVH"
+	s1 := "Flexibleengine"
+	s2 := "Flexibleengine"
 	err := client.Connect(s1, s2)
 	if err != nil {
 		t.Fatal()
 	}
 	assert.Nil(t, err)
 	lContainersItemsDeb, err := client.Inspect()
-	myContainerTest := "ContainertestONE"
+	assert.Nil(t, err)
+	pattern := "*isfortes*"
+	myContainerTest := "testpc"
 	myItemTest1 := "ItemtestONE"
 	myItemTest2 := "ItemtestTWO"
 	myItemTest3 := "ItemtestTHREE"
@@ -67,14 +70,13 @@ func Test_Workflow(t *testing.T) {
 	fw, err := create(fileNameTestExtract)
 	err = client.ExtractItem(myContainerTest, myItemTest2, fw, nil, nil)
 	_, sizefile, err = read(fileNameTestExtract)
+	assert.Nil(t, err)
 	assert.Equal(t, size, sizefile)
 	assert.Nil(t, err)
 	f, sizefile, err = createAndReadforTest(fileNameTest)
 	assert.Nil(t, err)
 	err = client.PutItem(myContainerTest, myItemTest3, f, metadata)
 	assert.Nil(t, err)
-	/***/
-	pattern := "*isfortes*"
 	lContainersItemsFiltered, err := client.FilterByMetadata("user", pattern)
 	affichRes(client, lContainersItemsFiltered)
 	assert.Nil(t, err)
@@ -86,17 +88,28 @@ func Test_Workflow(t *testing.T) {
 	assert.Nil(t, err)
 	err = client.PutItemByChunk(myContainerTest, myItemTestSplit, 10, f, meta)
 	assert.Nil(t, err)
-	time.Sleep(20 * time.Second)
+	//tim, err := client.ItemLastMod(myContainerTest, myItemTestSplit)
+	//fmt.Println(tim)
+	err = client.WaitAllPutITemTerminated("user", pattern)
+	assert.Nil(t, err)
 	err = client.Clear(myContainerTest)
 	assert.Nil(t, err)
-	time.Sleep(20 * time.Second)
+	//	time.Sleep(10 * time.Second)
+	err = client.WaitAllPutITemTerminated("user", pattern)
+	assert.Nil(t, err)
 	pattern = "*isfortes*"
 	lContainersItemsFiltered, err = client.FilterByMetadata("user", pattern)
 	assert.Nil(t, err)
 	assert.Empty(t, lContainersItemsFiltered)
+	err = client.WaitAllPutITemTerminated("user", pattern)
+	assert.Nil(t, err)
 	err = client.Remove(myContainerTest)
 	assert.Nil(t, err)
+	err = client.WaitAllPutITemTerminated("user", pattern)
+	assert.Nil(t, err)
 	lContainersItemsFin, err := client.Inspect()
+	assert.Nil(t, err)
+	err = client.WaitAllPutITemTerminated("user", pattern)
 	assert.Nil(t, err)
 	//affichRes(client, lContainersItemsFin)
 	eq := reflect.DeepEqual(lContainersItemsDeb, lContainersItemsFin)
@@ -162,4 +175,11 @@ func read(fileName string) (f *os.File, size int64, err error) {
 	// get the size
 	size = fi.Size()
 	return f, size, err
+}
+
+func worker(finished chan bool) {
+	fmt.Println("Worker: Started")
+	time.Sleep(5 * time.Second)
+	fmt.Println("Worker: Finished")
+	finished <- true
 }
