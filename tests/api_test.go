@@ -25,6 +25,7 @@ func Test_Connect(t *testing.T) {
 */
 // cd ~/go/src/github.com/pcrume/tests
 //go test -v
+
 func Test_Workflow(t *testing.T) {
 	var metadata = make(map[string]interface{})
 	var fileNameTest = "/tmp/test.txt"
@@ -39,13 +40,19 @@ func Test_Workflow(t *testing.T) {
 	client := new(apistow.Location)
 	s1 := "Flexibleengine"
 	s2 := "Flexibleengine"
+	//s1 := "OVH"
+	//s2 := "OVH"
+	//s1 := "CLOUDWat"
+	//s2 := "CLOUDWat"
 	err := client.Connect(s1, s2)
 	if err != nil {
 		t.Fatal()
 	}
 	assert.Nil(t, err)
 	lContainersItemsDeb, err := client.Inspect()
+	//affichRes(client, lContainersItemsDeb)
 	assert.Nil(t, err)
+
 	pattern := "*isfortes*"
 	myContainerTest := "testpc"
 	myItemTest1 := "ItemtestONE"

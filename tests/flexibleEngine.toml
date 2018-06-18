@@ -1,0 +1,8 @@
+Types = "s3"
+Domain = "OCB0001829"
+Auth = "oss.eu-west-0.prod-cloud-ocb.orange-business.com"
+Tenant = "05d285cfbc4b439eb06af12611adb2a8"
+Region = "eu-west-0"
+Key = "RUMOGGWCM0KCMDX6K9GW"
+SecretKey = "0r9lp1fFQ8WyUSyb7Z7xOlOa1jHca7f1cSppiXaP"
+Endpoint = "oss.eu-west-0.prod-cloud-ocb.orange-business.com"
