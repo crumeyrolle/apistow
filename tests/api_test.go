@@ -26,17 +26,7 @@ func Test_Workflow(t *testing.T) {
 	err = ovh.Connect("OVH", "OVH")
 	err = cloudWatt.Connect("CLOUDWat", "CLOUDWat")
 	assert.Nil(t, err)
-	/*
-		lContainersItemsDeb1, err := Flexeengine.Inspect()
-		lContainersItemsDeb2, err := ovh.Inspect()
-		lContainersItemsDeb3, err := cloudWatt.Inspect()
-		fmt.Println("Flexibleengine")
-		affichRes(Flexeengine, lContainersItemsDeb1)
-		fmt.Println("OVH")
-		affichRes(ovh, lContainersItemsDeb2)
-		fmt.Println("CLOUDWat")
-		affichRes(cloudWatt, lContainersItemsDeb3)
-	*/
+
 	count, err := Flexeengine.Count("", "*")
 	fmt.Println("Number of Item : ", count, "Total size : ", Flexeengine.SumSize())
 	count, err = ovh.Count("", "*")
@@ -118,12 +108,10 @@ func workflow(t *testing.T, client *apistow.Location) {
 	err = client.PutItemByChunk(myContainerTest, myItemTestSplit, 10, f, meta)
 	assert.Nil(t, err)
 	//tim, err := client.ItemLastMod(myContainerTest, myItemTestSplit)
-	//fmt.Println(tim)
 	err = client.WaitAllPutITemTerminated("user", pattern)
 	assert.Nil(t, err)
 	err = client.Clear(myContainerTest)
 	assert.Nil(t, err)
-	//	time.Sleep(10 * time.Second)
 	err = client.WaitAllPutITemTerminated("user", pattern)
 	assert.Nil(t, err)
 	pattern = "*isfortes*"
