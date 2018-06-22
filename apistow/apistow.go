@@ -12,130 +12,50 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/graymeta/stow"
+	// necessary for connect
 	_ "github.com/graymeta/stow/s3"
 	_ "github.com/graymeta/stow/swift"
 )
-
-// split body and spec to do
-//  testify assert to do
-// gestion tenant file dans connect to do
-
-//ObjectStorageAPI ObjectStorageAPI
-type ObjectStorageAPI interface {
-	Connect(projectName string, provider string) error
-
-	Inspect() (map[string][]string, error)
-	Count(key string, pattern string) (int, error)
-	WaitAllPutITemTerminated(key string, valuePattern string) error
-	FilterByMetadata(key string, valuePattern string) (map[string][]string, error)
-
-	ListContainers() ([]string, error)
-
-	ListItems(ContainerName string) (map[string][]string, error)
-	FilterItemsByMetadata(ContainerName string, key string, pattern string) (map[string][]string, error)
-
-	Create(ContainerName string) error
-	Remove(ContainerName string) error
-	Clear(myContainerName string) error
-
-	PutItemByChunk(container string, itemName string, chunksize int, f *os.File, metadata map[string]interface{}) error
-	PutItem(container string, itemName string, f *os.File, metadata map[string]interface{}) error
-	PutItemContent(container string, itemName string, content []byte, metadata map[string]interface{}) error
-
-	ExtractItem(container string, itemName string, f *os.File, pseekTo *int64, plength *int64) error
-	ExtractItemContent(container string, itemName string) ([]byte, error)
-
-	ItemSize(ContainerName string, item string) (int64, error)
-	ItemEtag(ContainerName string, item string) (string, error)
-	ItemLastMod(ContainerName string, item string) (time.Time, error)
-	ItemID(ContainerName string, item string) (id string)
-	ItemMetadata(ContainerName string, item string) (map[string]interface{}, error)
-}
-
-//Location Location
-type Location struct {
-	Location StowLocation
-	NbItem   int
-}
-
-//StowLocation StowLocation
-type StowLocation struct {
-	Location stow.Location
-}
 
 //Connect Connect
 func (client *Location) Connect(projectName string, provider string) (err error) {
 	log.Println("Connect: ", provider)
 	var kind string
+	var conf Config
 	var config stow.ConfigMap
-	// on linux before ~/go/src/github.com/graymeta/stow/main$ go run main.go
-	//export PROVIDER=orange
-	//export PROVIDER=Flexibleengine
-	//export PROVIDER=ovh
-
-	//provider := os.Getenv("PROVIDER")
+	var filename string
 
 	if provider == "Flexibleengine" {
-		kind = "s3"
-		domain := "OCB0001829"
-		tenantAuthURL := "oss.eu-west-0.prod-cloud-ocb.orange-business.com"
-		tenantName := "05d285cfbc4b439eb06af12611adb2a8"
-		region := "eu-west-0"
-		accessKeyID := "RUMOGGWCM0KCMDX6K9GW"
-		secretKey := "0r9lp1fFQ8WyUSyb7Z7xOlOa1jHca7f1cSppiXaP"
-		endpoint := "oss.eu-west-0.prod-cloud-ocb.orange-business.com"
-
-		config = stow.ConfigMap{
-			"access_key_id":   accessKeyID,
-			"secret_key":      secretKey,
-			"region":          region,
-			"tenant_name":     tenantName,
-			"tenant_auth_url": tenantAuthURL,
-			"domain":          domain,
-			"endpoint":        endpoint,
-		}
-
+		filename = "flexibleEngine.toml"
 	}
 	if provider == "OVH" {
-		kind = "swift"
-		username := "Yfk9h7THvsuD"
-		key := "AnrVjJJuyFxVUNXG95f9FbYkw6xSuCRJ"
-		tenantName := "3670559383264836"
-		tenantAuthURL := "https://auth.cloud.ovh.net/v3/"
-		region := "SBG3"
-		domain := "default"
-
-		config = stow.ConfigMap{
-			"username":        username,
-			"key":             key,
-			"tenant_name":     tenantName,
-			"tenant_auth_url": tenantAuthURL,
-			"region":          region,
-			"domain":          domain,
-			"kind":            kind,
-		}
+		filename = "ovh.toml"
 	}
 	if provider == "CLOUDWat" {
-		kind = "swift"
-		username := "eric.guzzonato@c-s.fr"
-		key := "{4f8uMwAe.j]>aRg"
-		tenantName := "0750190889_COPERNICUS-1"
-		tenantAuthURL := "https://identity.fr1.cloudwatt.com/v2.0"
-		region := "fr1"
-		domain := "default"
-
-		config = stow.ConfigMap{
-			"username":        username,
-			"key":             key,
-			"tenant_name":     tenantName,
-			"tenant_auth_url": tenantAuthURL,
-			"region":          region,
-			"domain":          domain,
-			"kind":            kind,
-		}
-
+		filename = "CloudWatt.toml"
 	}
+
+	_, err = toml.DecodeFile(filename, &conf)
+	if err != nil {
+		log.Println("erreur", filename, err)
+		return err
+	}
+	config = stow.ConfigMap{
+		"access_key_id":   conf.Key,
+		"secret_key":      conf.Secretkey,
+		"username":        conf.User,
+		"key":             conf.Key,
+		"endpoint":        conf.Endpoint,
+		"tenant_name":     conf.Tenant,
+		"tenant_auth_url": conf.Auth,
+		"region":          conf.Region,
+		"domain":          conf.Domain,
+		"kind":            conf.Types,
+	}
+	kind = conf.Types
+
 	// Check config location
 	err = stow.Validate(kind, config)
 	if err != nil {
@@ -147,23 +67,6 @@ func (client *Location) Connect(projectName string, provider string) (err error)
 		log.Println("erreur Dial", err, client.Location.Location)
 		return err
 	}
-
-	tenantAuthURL, ok := config.Config("tenant_auth_url")
-	if ok != true {
-		log.Println("Container WalkContainers => tenantAuthUrl undefined")
-		return err
-	}
-
-	//MODIF PC cas Flexibleengine si tenantAuthUrl contient "prod-cloud-ocb.orange-business.com"
-	if strings.Contains(tenantAuthURL, "prod-cloud-ocb.orange-business.com") == true {
-		provider = "Flexibleengine"
-	}
-	if tenantAuthURL == "https://auth.cloud.ovh.net/v3/" {
-		provider = "OVH"
-	}
-	if tenantAuthURL == "https://identity.fr1.cloudwatt.com/v2.0" {
-		provider = "CLOUD Wat"
-	}
 	return err
 }
 
@@ -171,7 +74,7 @@ func (client *Location) Connect(projectName string, provider string) (err error)
 func (client *Location) ItemSize(ContainerName string, item string) (sizeIt int64, err error) {
 	itemstow, err := client.GetItem(ContainerName, item)
 	if err != nil {
-		log.Println("erreur GetItem : ", ContainerName, '.', item, err)
+		log.Println("erreur ItemSize : ", ContainerName, '.', item, err)
 		return sizeIt, err
 	}
 	sizeIt, err = stow.Item.Size(itemstow)
@@ -186,7 +89,7 @@ func (client *Location) ItemSize(ContainerName string, item string) (sizeIt int6
 func (client *Location) ItemEtag(ContainerName string, item string) (ETag string, err error) {
 	itemstow, err := client.GetItem(ContainerName, item)
 	if err != nil {
-		log.Println("erreur GetItem : ", ContainerName, '.', item, err)
+		log.Println("erreur ItemEtag : ", ContainerName, '.', item, err)
 		return ETag, err
 	}
 	ETag, err = stow.Item.ETag(itemstow)
@@ -201,7 +104,7 @@ func (client *Location) ItemEtag(ContainerName string, item string) (ETag string
 func (client *Location) ItemLastMod(ContainerName string, item string) (tim time.Time, err error) {
 	itemstow, err := client.GetItem(ContainerName, item)
 	if err != nil {
-		log.Println("erreur GetItem : ", ContainerName, '.', item, err)
+		log.Println("erreur ItemLastMod : ", ContainerName, '.', item, err)
 		return tim, err
 	}
 	tim, err = stow.Item.LastMod(itemstow)
@@ -216,7 +119,7 @@ func (client *Location) ItemLastMod(ContainerName string, item string) (tim time
 func (client *Location) ItemID(ContainerName string, item string) (id string, err error) {
 	itemstow, err := client.GetItem(ContainerName, item)
 	if err != nil {
-		log.Println("erreur GetItem : ", ContainerName, '.', item, err)
+		log.Println("erreur ItemID : ", ContainerName, '.', item, err)
 		return id, err
 	}
 	id = stow.Item.ID(itemstow)
@@ -227,7 +130,7 @@ func (client *Location) ItemID(ContainerName string, item string) (id string, er
 func (client *Location) ItemMetadata(ContainerName string, item string) (meta map[string]interface{}, err error) {
 	itemstow, err := client.GetItem(ContainerName, item)
 	if err != nil {
-		log.Println("erreur GetItem : ", ContainerName, '.', item, err)
+		log.Println("erreur ItemMetadata : ", ContainerName, '.', item, err)
 		return meta, err
 	}
 	meta, err = stow.Item.Metadata(itemstow)
@@ -307,7 +210,7 @@ func (client *Location) Inspect() (s map[string][]string, err error) {
 					if err != nil {
 						return err
 					}
-					//log.Println("  Item => : ", item.Name(), " Metadata Item => ", meta)
+					//log.Println("  Item => : ", item.Name())
 					oneItemFund = true
 					//vsf = append(vsf, c.Name())
 					//vsf = append(vsf, item.Name())
@@ -316,21 +219,99 @@ func (client *Location) Inspect() (s map[string][]string, err error) {
 					return nil
 				})
 			if oneItemFund == false {
-				//log.Println("No Item found corresponding to filter", key, pattern)
+				//log.Println("No Item found corresponding to filter")
+				vsf[c.Name()] = append(vsf[c.Name()], "")
 			}
 
 			return nil
 		})
 	if err != nil {
-		log.Println("Container WalkContainers => : ", err)
+		log.Println("Inspect => : ", err)
 	}
 	return vsf, err
+}
+
+// SumSize SumSize
+func (client *Location) SumSize() (size string) {
+	var err error
+	log.Println(" SumSize  ")
+	var vSize int64
+	var oneItemFund = false
+	err = stow.WalkContainers(client.Location.Location, stow.NoPrefix, 100,
+		func(c stow.Container, err error) error {
+			if err != nil {
+				return err
+			}
+			//log.Println("Nom du Container  => : ", c.Name())
+			/***/
+			err = stow.Walk(c, stow.NoPrefix, 100,
+				func(item stow.Item, err error) error {
+					if err != nil {
+						return err
+					}
+					//log.Println("  Item => : ", item.Name())
+					oneItemFund = true
+
+					sizeItem, err := item.Size()
+					if err != nil {
+						return err
+					}
+					vSize = vSize + sizeItem
+					return nil
+				})
+			if oneItemFund == false {
+				//log.Println("No Item found corresponding to filter")
+			}
+
+			return nil
+		})
+	if err != nil {
+		log.Println(" SumSize => : ", err)
+	}
+	return byteSize(uint64(vSize))
+}
+
+const (
+	cBYTE = 1.0 << (10 * iota)
+	cKILOBYTE
+	cMEGABYTE
+	cGIGABYTE
+	cTERABYTE
+)
+
+func byteSize(bytes uint64) string {
+	unit := ""
+	value := float32(bytes)
+
+	switch {
+	case bytes >= cTERABYTE:
+		unit = "T"
+		value = value / cTERABYTE
+	case bytes >= cGIGABYTE:
+		unit = "G"
+		value = value / cGIGABYTE
+	case bytes >= cMEGABYTE:
+		unit = "M"
+		value = value / cMEGABYTE
+	case bytes >= cKILOBYTE:
+		unit = "K"
+		value = value / cKILOBYTE
+	case bytes >= cBYTE:
+		unit = "B"
+	case bytes == 0:
+		return "0"
+	}
+
+	stringValue := fmt.Sprintf("%.1f", value)
+	stringValue = strings.TrimSuffix(stringValue, ".0")
+	return fmt.Sprintf("%s%s", stringValue, unit)
 }
 
 // Count Liste List All Containers And Items
 func (client *Location) Count(key string, pattern string) (count int, err error) {
 	log.Println("Count  ")
 	var oneItemFund = false
+	var trouve bool
 	count = 0
 	err = stow.WalkContainers(client.Location.Location, stow.NoPrefix, 100,
 		func(c stow.Container, err error) error {
@@ -342,9 +323,13 @@ func (client *Location) Count(key string, pattern string) (count int, err error)
 					if err != nil {
 						return err
 					}
-					meta := make(map[string]interface{})
-					meta, err = stow.Item.Metadata(item)
-					trouve := SearchPatternForMapUser("user", pattern, meta)
+					if key == "*" || key == "" {
+						trouve = true
+					} else {
+						meta := make(map[string]interface{})
+						meta, err = stow.Item.Metadata(item)
+						trouve = SearchPatternForMapUser(key, pattern, meta)
+					}
 					if trouve == true {
 						count = count + 1
 					}
@@ -380,7 +365,7 @@ func (client *Location) FilterByMetadata(key string, pattern string) (s map[stri
 					}
 					meta := make(map[string]interface{})
 					meta, err = stow.Item.Metadata(item)
-					trouve := SearchPatternForMapUser("user", pattern, meta)
+					trouve := SearchPatternForMapUser(key, pattern, meta)
 					if trouve == true {
 						//log.Println("  Item => : ", item.Name(), " Metadata Item => ", meta)
 						oneItemFund = true
@@ -437,7 +422,7 @@ func (client *Location) FilterItemsByMetadata(ContainerName string, key string, 
 			}
 			meta := make(map[string]interface{})
 			meta, err = stow.Item.Metadata(item)
-			trouve := SearchPatternForMapUser("user", pattern, meta)
+			trouve := SearchPatternForMapUser(key, pattern, meta)
 			if trouve == true {
 				//log.Println("  Item => : ", item.Name(), " Metadata Item => ", meta)
 				oneItemFund = true
