@@ -18,13 +18,24 @@ import (
 
 func Test_Workflow(t *testing.T) {
 
-	Flexeengine := new(apistow.Location)
 	ovh := new(apistow.Location)
+	Config, err := ovh.ReadTenant("OVH", "OVH")
+	err = ovh.Connect(Config)
+	//fmt.Println(ovh.Location.Location)
+	lContainersItemsDeb, err := ovh.Inspect()
+	affichRes(ovh, lContainersItemsDeb)
+	return
+	fw, err := create("/tmp/Extract0safecsale.txt")
+	err = ovh.ExtractItem("0.safescale", "host/byID/18f3ce1e-5ab0-4956-a512-fcb44365241e", fw, nil, nil)
+	return
+	Flexeengine := new(apistow.Location)
+
 	cloudWatt := new(apistow.Location)
 
-	err := Flexeengine.Connect("Flexibleengine", "Flexibleengine")
-	err = ovh.Connect("OVH", "OVH")
-	err = cloudWatt.Connect("CLOUDWat", "CLOUDWat")
+	err = Flexeengine.Connect(Config)
+
+	return
+	err = cloudWatt.Connect(Config)
 	assert.Nil(t, err)
 
 	count, err := Flexeengine.Count("", "*")
@@ -34,16 +45,16 @@ func Test_Workflow(t *testing.T) {
 	count, err = cloudWatt.Count("", "*")
 	fmt.Println("Number of Item : ", count, "Total size : ", cloudWatt.SumSize())
 
-	log.Println("********************* START workflow Flexeengine ********************************** ")
+	log.Println("********************* START workflow Flexeengine ************************** ")
 	workflow(t, Flexeengine)
 	log.Println("********************* START workflow ovh ********************************** ")
 	workflow(t, ovh)
-	log.Println("********************* START workflow cloudWatt ********************************** ")
+	log.Println("********************* START workflow cloudWatt **************************** ")
 	workflow(t, cloudWatt)
 }
 
 func workflow(t *testing.T, client *apistow.Location) {
-	defer timeTrack(time.Now(), "********************* END workflow ")
+	defer timeTrack(time.Now(), "********************* workflow terminated in ")
 	var metadata = make(map[string]interface{})
 	var fileNameTest = "/tmp/test.txt"
 	var fileNameTestExtract = "/tmp/testExtracted.txt"
@@ -60,19 +71,11 @@ func workflow(t *testing.T, client *apistow.Location) {
 	myItemTest2 := "ItemtestTWO"
 	myItemTest3 := "ItemtestTHREE"
 	myItemTestSplit := "ItemtestSplitted"
-	/*
-		for j := 1; j <= 100; j++ {
-			myContainerTest := "testpc" + strconv.Itoa(j)
-			//err = client.Create(myContainerTest)
-			err = client.Remove(myContainerTest)
-		}
-	*/
+
 	lContainersItemsDeb, err := client.Inspect()
 	/*affichRes(client, lContainersItemsDeb)*/
-
 	err = client.Create(myContainerTest)
 	assert.Nil(t, err)
-
 	f, sizefile, err := createAndReadforTest(fileNameTest)
 	assert.Nil(t, err)
 	err = client.PutItem(myContainerTest, myItemTest1, f, metadata)
@@ -134,9 +137,17 @@ func workflow(t *testing.T, client *apistow.Location) {
 
 }
 
+/*
+	for j := 1; j <= 100; j++ {
+		myContainerTest := "testpc" + strconv.Itoa(j)
+		//err = client.Create(myContainerTest)
+		err = client.Remove(myContainerTest)
+	}
+*/
+
 func timeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
-	log.Printf("%s took %s", name, elapsed)
+	log.Printf("%s : %s", name, elapsed)
 }
 
 func affichRes(client *apistow.Location, msoftabs map[string][]string) {

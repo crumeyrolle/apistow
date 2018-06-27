@@ -19,13 +19,38 @@ import (
 	_ "github.com/graymeta/stow/swift"
 )
 
-//Connect Connect
-func (client *Location) Connect(projectName string, provider string) (err error) {
+//ReadTenant ReadTenant
+func (client *Location) ReadTenant(projectName string, provider string) (Config, error) {
 	log.Println("Connect: ", provider)
-	var kind string
 	var conf Config
-	var config stow.ConfigMap
 	var filename string
+
+	if provider == "Flexibleengine" {
+		filename = "flexibleEngine.toml"
+	}
+	if provider == "OVH" {
+		filename = "ovh.toml"
+	}
+	if provider == "CLOUDWat" {
+		filename = "CloudWatt.toml"
+	}
+
+	_, err := toml.DecodeFile(filename, &conf)
+	if err != nil {
+		log.Println("erreur", filename, err)
+		return conf, err
+	}
+
+	return conf, err
+}
+
+//Connect Connect
+func (client *Location) Connect(conf Config) (err error) {
+	log.Println("Connect: ", conf)
+	var kind string
+	//var conf Config
+	var config stow.ConfigMap
+	/*var filename string
 
 	if provider == "Flexibleengine" {
 		filename = "flexibleEngine.toml"
@@ -41,7 +66,7 @@ func (client *Location) Connect(projectName string, provider string) (err error)
 	if err != nil {
 		log.Println("erreur", filename, err)
 		return err
-	}
+	} */
 	config = stow.ConfigMap{
 		"access_key_id":   conf.Key,
 		"secret_key":      conf.Secretkey,
@@ -307,7 +332,7 @@ func byteSize(bytes uint64) string {
 	return fmt.Sprintf("%s%s", stringValue, unit)
 }
 
-// Count Liste List All Containers And Items
+// Count Liste List All Containers And Items serch ALL => key = "*" or key =""
 func (client *Location) Count(key string, pattern string) (count int, err error) {
 	log.Println("Count  ")
 	var oneItemFund = false

@@ -9,7 +9,8 @@ import (
 
 //ObjectStorageAPI ObjectStorageAPI
 type ObjectStorageAPI interface {
-	Connect(projectName string, provider string) error
+	ReadTenant(projectName string, provider string) (Config, error)
+	Connect(conf Config) error
 	Inspect() (map[string][]string, error)
 	SumSize() string
 	Count(key string, pattern string) (int, error)
